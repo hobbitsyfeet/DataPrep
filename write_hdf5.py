@@ -4,6 +4,7 @@ from plyfile import PlyData, PlyElement
 import os
 import random
 import pcl
+import argparse
 
 
 
@@ -39,7 +40,7 @@ def get_label(filename, labels=["head", "body", "arm","tail", "leg", "ear"]):
             get_labels(./raccoon/somefilename.ply, ["goose","raccoon"]): It will return ("raccoon,1")
     """
     for label in labels:
-        if label in filename.lower():
+        if label.lower() in filename.lower():
             return (label, labels.index(label))
 
     return -1
@@ -73,7 +74,9 @@ def extract_ply_data(filenames, min_points=1024):
 
             normal = calculate_normals(filenames[file_count])
 
-            label = get_label(filenames[file_count])
+            label, label_index = get_label(filenames[file_count], labels=["Head", "Hips", "left_knee","Left_Ankle", "Left_Bicep", "Left_Elbow", "Left_Femur", "Left_Foot", "Left_Forearm", "Left_Hand", "Left_Hip", "Left_Shin", "Left_Sholder", "Left_Wrist",
+                                                            "Right_Ankle", "right_knee" , "Right_Ankle", "Right_Bicep", "Right_Elbow", "Right_Femur", "Right_Foot", "Right_Forearm", "Right_Hand", "Right_Hip", "Right_Shin", "Right_Sholder", "Right_Wrist", 
+                                                            "Neck", "Torso", "Waist"])
             #add data and label to their respective lists.
             if label != -1:
                 print("Adding " + str(filenames[file_count]) + ": " + label[0].capitalize())
@@ -97,7 +100,7 @@ def calculate_normals(pcl_cloud):
     #print(ne)
     #print(cloud_normals)
 
-    print(cloud_normals)
+    #print(cloud_normals)
 
     return cloud_normals
 
@@ -152,10 +155,17 @@ def export_classify():
 def export_sem_seg():
     pass
 
+
 if __name__ == "__main__":
-    DATA_DIR = "D:/Data/ALL_DATA/Seg_Raccoon/Left_Right_Perspective_Seg/Both_Seg/Segmented_L"
+    
+    # DATA_DIR = "E:/Data/Kinect/StickMan/Segmented/Forward"
+    # OUT_DIR = "E:/Data/Kinect/StickMan/Labelled"
+
+    # DATA_DIR = "D:/Data/ALL_DATA/Seg_Raccoon/Left_Right_Perspective_Seg/Both_Seg/Segmented_L"
+    DATA_DIR = "D:/Data/ALL_DATA/Seg_Raccoon/Left_Right_Perspective_Seg/Both_Seg/OneSample"
     OUT_DIR = "D:/Data/ALL_DATA/Seg_Raccoon/Left_Right_Perspective_Seg/Both_Seg"
-    sample_size = 1024
+    sample_size = 2048
+
     plydata = None
     All_Files, dirs = collect_files(DATA_DIR,file_type="ply")
     #print(len(dirs))
@@ -164,15 +174,15 @@ if __name__ == "__main__":
     label_list = []
 
         # #write test_data, test_label, train_data, train_label val_data, val_data
-    folder_name = 'Raccoons'
+    folder_name = 'raccoon'
     file_name = "raccoon"
     
-    try:
-        os.mkdir(OUT_DIR+"/Exported")
-    except:
-        pass
-    OUT_DIR = OUT_DIR + "/Exported"
-    print(OUT_DIR)
+    # try:
+    #     os.mkdir(OUT_DIR+"/Exported")
+    # except:
+    #     pass
+    # OUT_DIR = OUT_DIR + "/Exported"
+    # print(OUT_DIR)
     try:
         os.mkdir(OUT_DIR+"/test_train")
     except:
@@ -191,8 +201,8 @@ if __name__ == "__main__":
         pass
 
     
-    file_count = 34
-    folder_name = 'Raccoons'
+    file_count = 0
+    folder_name = 'raccoon'
     file_name = "raccoon"
 
 
@@ -204,7 +214,10 @@ if __name__ == "__main__":
     #print(len(All_Files))
     data_h5 = np.zeros((len(dirs), sample_size, 3))
     normals_h5 = np.zeros((len(dirs), sample_size, 3))
-    labels_h5 = np.zeros((len(dirs), sample_size, 1))
+    labels_h5 = np.zeros((len(dirs), sample_size))
+
+    data_num_h5 = np.zeros((len(dirs)))
+    model_id_h5 = np.zeros((len(dirs)))
 
     #file_count = 0
     #set a random seed once for all datasets for sampling
@@ -212,12 +225,12 @@ if __name__ == "__main__":
     for directory in dirs:
         print(directory)
         filenames, dirs = collect_files(directory,file_type="ply")
-        txt_file = open(OUT_DIR + "/data/Raccoon" + str(file_count) + ".txt", 'w')
+        txt_file = open(OUT_DIR + "/data/" + file_name + str(file_count) + ".txt", 'w')
         # train_data_file = open(OUT_DIR+"/train_data/" + file_name + str(file_count) + ".pts", 'w')
         # train_label_file = open(OUT_DIR+"/train_label/" + file_name + str(file_count) + ".seg", 'w')
         # test_data_file = open(OUT_DIR+"/test_data/" + file_name + str(file_count) + ".pts", 'w')
         # test_label_file = open(OUT_DIR+"/test_label/" + file_name + str(file_count) + ".seg", 'w')
-        print("================Writing File " + "Raccoon" + str(file_count) + ".txt================")
+        print("================Writing File " + file_name + str(file_count) + ".txt================")
         temp_data_list = []
         temp_normal_list = []
         temp_label_list = []
@@ -229,8 +242,11 @@ if __name__ == "__main__":
             size = len(pcl_cloud.to_list())
             if size > 64:
                 normal_cloud = (calculate_normals(pcl_cloud))
-                label = (get_label(file)[1])
-                
+
+                # label = get_label(file, labels=["Head", "Hips", "left_knee","Left_Ankle", "Left_Bicep", "Left_Elbow", "Left_Femur", "Left_Foot", "Left_Forearm", "Left_Hand", "Left_Hip", "Left_Shin", "Left_Sholder", "Left_Wrist",
+                                                            # "Right_Ankle", "right_knee" , "Right_Ankle", "Right_Bicep", "Right_Elbow", "Right_Femur", "Right_Foot", "Right_Forearm", "Right_Hand", "Right_Hip", "Right_Shin", "Right_Sholder", "Right_Wrist", 
+                                                            # "Neck", "Torso", "Waist"])[1]
+                label = get_label(file,labels=["Body", "Head", "Arm", "Tail"])
 
 
                 for point in range(len(pcl_cloud.to_list())):
@@ -288,24 +304,35 @@ if __name__ == "__main__":
         os.mkdir(OUT_DIR+"/test")
     except:
         pass
+    
+    try:
+        data_train, data_test, normal_train, normal_test, label_train, label_test = train_test_split(data_list, normal_list, label_list, test_size=0.33, random_state=42)
+    except:
+        print("Not enough for test_train split. Setting Testing and training to be the same.")
+        data_train = data_list
+        data_test = data_list
 
-    data_train, data_test, normal_train, normal_test, label_train, label_test = train_test_split(data_list, normal_list, label_list, test_size=0.33, random_state=42)
+        normal_train = normal_list
+        normal_test = normal_list
+        
+        label_train = label_list
+        label_test = label_list
 
-
-    file_count = 34
+    file_count = 0
     #print(data_train)
+    print("Exporting .pts and .seg")
     for model_index in range(len(data_train)):
 
         train_file = open(OUT_DIR+"/train/" + file_name + str(file_count) + ".txt", 'w')
         train_data_file = open(OUT_DIR+"/train_data/" + file_name + str(file_count) + ".pts", 'w')
         train_label_file = open(OUT_DIR+"/train_label/" + file_name + str(file_count) + ".seg", 'w')
         for data in range(len(data_train[model_index])):
-            #print(label_train)
+            # print(label_train)
             # train_str = data_train[model_index][]
 
             data_str = str(data_train[model_index][data][0]) + " " + str(data_train[model_index][data][1]) + " " + str(data_train[model_index][data][2])
             normal_str = str(normal_train[model_index][data][0]) + " " + str(normal_train[model_index][data][1]) + " " + str(normal_train[model_index][data][2])
-            label_str = (str(int(label_train[model_index][data])))
+            label_str = str(int(label_train[model_index][data][1]))
             
             train_file.write(data_str + " " + normal_str + " " + label_str + '\n')
 
@@ -331,7 +358,7 @@ if __name__ == "__main__":
             
             data_str = str(data_test[model_index][data][0]) + " " + str(data_test[model_index][data][1]) + " " + str(data_test[model_index][data][2])
             normal_str = str(normal_test[model_index][data][0]) + " " + str(normal_test[model_index][data][1]) + " " + str(normal_test[model_index][data][2])
-            label_str = (str(int(label_test[model_index][data])))
+            label_str = (str(int(label_test[model_index][data][1])))
 
             test_file.write(data_str + " " + normal_str + " " + label_str + '\n')
             # data_str = str(data_test[model_index][data][0]) + " " + str(data_test[model_index][data][1]) + " " + str(data_test[model_index][data][2])
@@ -339,6 +366,7 @@ if __name__ == "__main__":
             test_label_file.write((label_str +'\n'))
 
         file_count += 1
+        print(".pts .seg Success")
     # data_string = str(pcl_cloud[point][0]) + " " + str(pcl_cloud[point][1]) + " " + str(pcl_cloud[point][2]) + " " 
     # normal_string = str(normal_cloud[point][0]) + " " + str(normal_cloud[point][1]) + " " +str(normal_cloud[point][2]) + " "
     # label_string = str(label)
@@ -348,52 +376,103 @@ if __name__ == "__main__":
     
     # test_data_file.write(data_test[f])
     # test_label_file.write(label_test)
+
+        # print(data_num_h5.shape)
+        print("Exporting .h5...")
+        data_num_h5 = []
+        model_id_h5 = []
+        for model_num in range(len(data_list)): #There should be as many 'lists' as there are complete scans
+
+            #Whole model prediction
+            # data_num_h5[model_num] = len(data_list[model_num]) #data_num is the number of points in the model
+            # model_id_h5[model_num] = 0
+
+            print("Creating HDF5")
+            sampled_data = random.sample(data_list[model_num], sample_size)
+            sampled_normals = random.sample(normal_list[model_num], sample_size)
+            sampled_labels = random.sample(label_list[model_num], sample_size)
             
+            data_num_h5.append(len(sampled_data))
 
-            # sampled_data = random.sample(data_list, sample_size)
-            # sampled_normals = random.sample(normal_list, sample_size)
-            # sampled_labels = random.sample(label_list, sample_size)
+            # data_num_h5[model_num] = len(sampled_data) #data_num is the number of points in the model
+            print("DATANUM", data_num_h5)
+            # model_id_h5[model_num] = 0
+            model_id_h5.append(0)
+            print("MODEL_ID", model_id_h5)
+            for point in range(len(sampled_data)):
 
-            # for point in range(len(sampled_data)):
+                    data_h5[model_num, point] = [sampled_data[point][0], sampled_data[point][1], sampled_data[point][2]]
+                    #print(data_h5[file_count,point])
+                    normals_h5[model_num, point] = sampled_normals[point]
+                    #print(normals_h5[file_count,point])
 
-            #     data_h5[file_count, point] = [sampled_data[point][0], sampled_data[point][1], sampled_data[point][2]]
-            #     #print(data_h5[file_count,point])
-            #     normals_h5[file_count,point] = sampled_normals[point]
-            #     #print(normals_h5[file_count,point])
-            #     labels_h5[file_count,point] = sampled_labels[point]
-                #print(labels_h5[file_count,point])
-        # print(data_h5[file_count])
+                    labels_h5[model_num, point] = sampled_labels[point][1]
+                    # print(labels_h5[index,point])
 
+            # print(data_h5[model_num])
+            print(data_num_h5)
+    
     # print(data_h5)
     # print(len(data_h5))
 
 
-        
-    # data_train, data_test, normal_train, normal_test, label_train, label_test = train_test_split(data_h5,normals_h5, labels_h5, test_size=0.33, random_state=42)
-    # #print(data_train)
-    # # #write H5 files
-    # train_filename = OUT_DIR + "/data/Animal_seg_train.h5"
-    # train_files.write(train_filename + '\n')
+    print("CREATING HDF5 DATASET")
     
-    # hdf_train = h5py.File(train_filename, "w")
-    # #dataset = f.create_dataset("data", data = point_data)
-    # hdf_train.create_dataset("data", data = data_train)
-    # hdf_train.create_dataset("label", data = label_train)
-    # hdf_train.create_dataset("normal", data = normal_train)
+    try:
+        # data_train, data_test, normal_train, normal_test, label_train, label_test = train_test_split(data_list, normal_list, label_list, test_size=0.33, random_state=42)
+        data_train, data_test, normal_train, normal_test, label_train, label_test, data_num_train, data_num_test, model_id_train, model_id_test = train_test_split(data_h5, normals_h5, labels_h5, data_num_h5, model_id_h5, test_size=0.33, random_state=42)
+    except:
+        print("Not enough for test_train split. Setting Testing and training to be the same.")
+        data_train = data_h5
+        data_test = data_h5
 
-    # hdf_train.flush()
-    # hdf_train.close()
+        data_num_test = data_num_h5
+        data_num_train = data_num_h5
 
-    # test_filename =OUT_DIR + "/data/Animal_seg_test.h5"
-    # test_files.write(test_filename + '\n')
-    # hdf_test = h5py.File(test_filename, "w")
-    # #dataset = f.create_dataset("data", data = point_data)
-    # hdf_test.create_dataset("data", data = data_test)
-    # hdf_test.create_dataset("label", data = label_test)
-    # hdf_test.create_dataset("normal", data = normal_test)
+        model_id_test = model_id_h5
+        model_id_train = model_id_h5
 
-    # hdf_test.flush()
-    # hdf_test.close()
+        normal_train = normals_h5
+        normal_test = normals_h5
+        
+        label_train = labels_h5
+        label_test = labels_h5
+        # data_train, data_test, normal_train, normal_test, label_train, label_test = train_test_split(data_list, normal_list, label_list, test_size=0.33, random_state=42)
+        # data_train, data_test, normal_train, normal_test, label_train, label_test, data_num_train, data_num_test, model_id_train, model_id_test = train_test_split(data_h5, normals_h5, labels_h5, data_num_h5, model_id_h5, test_size=0.33, random_state=42)
+    
+    # print(data_train)
+
+    print("DATA_TRAIN")
+
+
+    # #write H5 files
+    train_filename = OUT_DIR + "/data/"+ file_name +"_seg_train.h5"
+    train_files.write(train_filename + '\n')
+    
+    hdf_train = h5py.File(train_filename, "w")
+    #dataset = f.create_dataset("data", data = point_data)
+    hdf_train.create_dataset("data", data = data_train)
+    hdf_train.create_dataset("data_num", data = data_num_train)
+    hdf_train.create_dataset("label", data = model_id_train) #Here we are just saying the labels belong to only one object (stick man, raccoon...)
+    hdf_train.create_dataset("label_seg", data = label_train) #The labels for each point
+    hdf_train.create_dataset("normal", data = normal_train) #surface normals
+
+    hdf_train.flush()
+    hdf_train.close()
+
+    test_filename =OUT_DIR + "/data/"+ file_name +"_seg_test.h5"
+    test_files.write(test_filename + '\n')
+    hdf_test = h5py.File(test_filename, "w")
+    #dataset = f.create_dataset("data", data = point_data)
+    hdf_test.create_dataset("data", data = data_test)
+    hdf_test.create_dataset("data_num", data = data_num_test)
+    hdf_test.create_dataset("label", data = model_id_test) #Here we are just saying the labels belong to only one object (stick man, raccoon...)
+    hdf_test.create_dataset("label_seg", data = label_test)
+    hdf_test.create_dataset("normal", data = normal_test)
+
+    hdf_test.flush()
+    hdf_test.close()
+    print("HDF5 DATASET COMPLETE")
 
     # # #write test_data, test_label, train_data, train_label val_data, val_data
     # folder_name = 'Raccoons'
